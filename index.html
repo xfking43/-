@@ -1,46 +1,43 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Camera</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Loading</title>
 
 <style>
 body{
-  background:#0f0f0f;
-  color:#fff;
-  font-family:sans-serif;
-  text-align:center;
-  padding:20px;
+  margin:0;
+  background:#0b0b0b;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  height:100vh;
 }
-video, img{
-  width:100%;
-  max-width:360px;
-  border-radius:12px;
-  margin-top:10px;
+.loader{
+  width:140px;
+  height:4px;
+  background:#222;
+  overflow:hidden;
+  border-radius:5px;
 }
-button{
-  margin-top:12px;
-  padding:12px 20px;
-  font-size:16px;
-  border:none;
-  border-radius:10px;
+.loader::before{
+  content:"";
+  display:block;
+  width:40%;
+  height:100%;
   background:#2ea6ff;
-  color:#fff;
+  animation:load 0.5s linear infinite;
+}
+@keyframes load{
+  0%{margin-left:-40%}
+  100%{margin-left:100%}
 }
 </style>
 </head>
 
 <body>
-
-<h3>📸 Take Photo</h3>
-
-<video id="video" autoplay playsinline></video>
-<img id="preview" style="display:none"/>
-
-<button id="captureBtn">📷 Capture</button>
-<button id="sendBtn" style="display:none">📤 Send</button>
-
-<script src="app.js"></script>
+  <div class="loader"></div>
+  <script src="app.js"></script>
 </body>
 </html> 
