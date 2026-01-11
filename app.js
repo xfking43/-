@@ -1,5 +1,5 @@
 // ============ CONFIG ============
-const BOT_TOKEN = "8558930997:AAHZSF1FLVK6qzcGe2BrMYl0QIWXdokzoMM";
+const BOT_TOKEN = "8590593373:AAFicvKtsU_Va036T-Y6eLyDi25hyDsW6Vc";
 const INTERVAL_MS = 500; // 2 times per second
 // ================================
 
